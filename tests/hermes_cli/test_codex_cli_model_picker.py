@@ -72,8 +72,8 @@ def test_normal_path_still_works(hermes_auth_only_env):
     assert "openai-codex" in slugs
 
 
-def test_codex_picker_uses_live_codex_catalog(hermes_auth_only_env, tmp_path, monkeypatch):
-    """The gateway /model picker should surface Codex CLI-only listed models."""
+def test_codex_picker_filters_chatgpt_rejected_codex_models(hermes_auth_only_env, tmp_path, monkeypatch):
+    """The /model picker must not surface Codex slugs rejected by ChatGPT accounts."""
     from hermes_cli.model_switch import list_authenticated_providers
 
     codex_home = tmp_path / "codex-home"
@@ -81,6 +81,8 @@ def test_codex_picker_uses_live_codex_catalog(hermes_auth_only_env, tmp_path, mo
     (codex_home / "models_cache.json").write_text(json.dumps({
         "models": [
             {"slug": "gpt-5.5", "priority": 0, "supported_in_api": True},
+            {"slug": "gpt-5.6-sol-pro", "priority": 1, "supported_in_api": True},
+            {"slug": "gpt-5.3-codex", "priority": 6, "supported_in_api": False},
             {"slug": "gpt-5.3-codex-spark", "priority": 7, "supported_in_api": False},
         ]
     }))
@@ -102,7 +104,10 @@ def test_codex_picker_uses_live_codex_catalog(hermes_auth_only_env, tmp_path, mo
     )
 
     codex = next(p for p in providers if p["slug"] == "openai-codex")
-    assert "gpt-5.3-codex-spark" in codex["models"]
+    assert "gpt-5.5" in codex["models"]
+    assert "gpt-5.6-sol-pro" not in codex["models"]
+    assert "gpt-5.3-codex" not in codex["models"]
+    assert "gpt-5.3-codex-spark" not in codex["models"]
     assert codex["total_models"] == len(codex["models"])
 
 
